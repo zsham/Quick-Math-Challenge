@@ -8,6 +8,8 @@ export enum ViewMode {
   REGISTER = 'REGISTER',
   GAME = 'GAME',
   HISTORY = 'HISTORY',
+  LEADERBOARD = 'LEADERBOARD',
+  CHALLENGE_SELECT = 'CHALLENGE_SELECT', // New view mode for selecting a challenge
 }
 
 /**

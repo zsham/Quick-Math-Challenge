@@ -6,8 +6,10 @@ import Button from './components/Button';
 import Timer from './components/Timer';
 import ScoreDisplay from './components/ScoreDisplay';
 import QuestionCard from './components/QuestionCard';
-import AuthForm from './components/AuthForm'; // New component
-import GameHistory from './components/GameHistory'; // New component
+import AuthForm from './components/AuthForm';
+import GameHistory from './components/GameHistory';
+import Leaderboard from './components/Leaderboard';
+import ChallengeSelect from './components/ChallengeSelect'; // New import for ChallengeSelect
 import { GAME_DURATION_SECONDS, NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS } from './constants';
 
 // --- Local Storage Utility Functions ---
@@ -51,6 +53,15 @@ const saveGameRecord = (username: string, record: GameRecord) => {
     console.error(`Error saving game record for ${username} to localStorage:`, error);
   }
 };
+
+// Function to load all game records for all users
+const loadAllGameRecords = (users: Map<string, User>): GameRecord[] => {
+  let allRecords: GameRecord[] = [];
+  users.forEach((_user, username) => {
+    allRecords = allRecords.concat(loadGameRecords(username));
+  });
+  return allRecords;
+};
 // --- End Local Storage Utility Functions ---
 
 function App() {
@@ -62,12 +73,11 @@ function App() {
   const [score, setScore] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(GAME_DURATION_SECONDS);
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null); // null, true, false
+  const [challengedRecord, setChallengedRecord] = useState<GameRecord | null>(null); // New state for challenge mode
   const timerRef = useRef<number | null>(null);
 
   // Initialize view mode based on logged in user
   useEffect(() => {
-    // In a real app, you'd check a session token or similar
-    // For this demo, we assume no persistent login and start at login screen
     if (!loggedInUser) {
       setCurrentViewMode(ViewMode.LOGIN);
     }
@@ -175,6 +185,13 @@ function App() {
     setLoggedInUser(null);
     setCurrentViewMode(ViewMode.LOGIN);
     setGamePhase(GamePhase.IDLE); // Clear game state
+    setChallengedRecord(null); // Clear any active challenge
+  };
+
+  const startChallengeGame = (record: GameRecord) => {
+    setChallengedRecord(record);
+    fetchQuestions(); // This will set gamePhase to PLAYING
+    setCurrentViewMode(ViewMode.GAME);
   };
 
   const renderContent = () => {
@@ -198,8 +215,35 @@ function App() {
             onBackToGame={() => {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
+              setChallengedRecord(null); // Clear challenge when going back to game idle
             }}
             loadGameRecords={loadGameRecords}
+          />
+        );
+      case ViewMode.LEADERBOARD:
+        return (
+          <Leaderboard
+            onBackToGame={() => {
+              setCurrentViewMode(ViewMode.GAME);
+              setGamePhase(GamePhase.IDLE);
+              setChallengedRecord(null); // Clear challenge when going back to game idle
+            }}
+            loadUsers={loadUsers}
+            loadGameRecords={loadGameRecords}
+          />
+        );
+      case ViewMode.CHALLENGE_SELECT: // New case for Challenge Selection
+        return (
+          <ChallengeSelect
+            onBackToGame={() => {
+              setCurrentViewMode(ViewMode.GAME);
+              setGamePhase(GamePhase.IDLE);
+              setChallengedRecord(null); // Clear challenge when going back to game idle
+            }}
+            onStartChallenge={startChallengeGame}
+            loadUsers={loadUsers}
+            loadAllGameRecords={loadAllGameRecords}
+            currentUser={loggedInUser}
           />
         );
       case ViewMode.GAME:
@@ -211,6 +255,9 @@ function App() {
                 <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-sm px-4 py-2">
                   History
                 </Button>
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-sm px-4 py-2">
+                  Leaderboard
+                </Button>
                 <Button variant="danger" onClick={handleLogout} className="text-sm px-4 py-2">
                   Logout
                 </Button>
@@ -221,9 +268,20 @@ function App() {
               <div className="text-center">
                 <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-8 drop-shadow-lg">Quick Math Challenge</h1>
                 <p className="text-xl text-gray-200 mb-12 max-w-md mx-auto">Test your mental math skills against the clock!</p>
-                <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
-                  Start Game
-                </Button>
+                {challengedRecord && (
+                  <div className="bg-blue-600/50 p-4 rounded-lg mb-8 max-w-sm mx-auto animate-pulse">
+                    <p className="text-lg font-semibold text-blue-200">Challenging: <span className="text-yellow-200">{challengedRecord.username}</span></p>
+                    <p className="text-md text-blue-200">Target Score: <span className="text-yellow-200">{challengedRecord.score}</span> / {challengedRecord.totalQuestions}</p>
+                  </div>
+                )}
+                <div className="space-x-4">
+                  <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
+                    {challengedRecord ? 'Re-Challenge' : 'Start Game'}
+                  </Button>
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.CHALLENGE_SELECT)} className="text-2xl px-10 py-5">
+                    Challenge Mode
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -236,7 +294,7 @@ function App() {
             {gamePhase === GamePhase.PLAYING && (
               <>
                 <div className="flex justify-between w-full max-w-lg mb-8">
-                  <ScoreDisplay score={score} />
+                  <ScoreDisplay score={score} challengedScore={challengedRecord?.score} />
                   <Timer timeLeft={timeLeft} />
                 </div>
                 {questions[currentQuestionIndex] && (
@@ -256,12 +314,32 @@ function App() {
               <div className="text-center">
                 <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-8 drop-shadow-lg">Game Over!</h1>
                 <p className="text-4xl font-bold text-emerald-300 mb-8">Your Final Score: {score} / {questions.length}</p>
+                {challengedRecord && (
+                  <div className="bg-blue-600/50 p-4 rounded-lg mb-8 max-w-md mx-auto">
+                    <p className="text-2xl font-semibold text-blue-200">
+                      Challenged <span className="text-yellow-200">{challengedRecord.username}</span> (Target: {challengedRecord.score})
+                    </p>
+                    {score > challengedRecord.score ? (
+                      <p className="text-3xl font-bold text-emerald-400 mt-2">CHALLENGE WON!</p>
+                    ) : score === challengedRecord.score ? (
+                      <p className="text-3xl font-bold text-blue-400 mt-2">IT'S A TIE!</p>
+                    ) : (
+                      <p className="text-3xl font-bold text-red-400 mt-2">CHALLENGE LOST!</p>
+                    )}
+                  </div>
+                )}
                 <div className="space-x-4">
                   <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
                     Play Again
                   </Button>
                   <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-2xl px-10 py-5">
                     View History
+                  </Button>
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-2xl px-10 py-5">
+                    Leaderboard
+                  </Button>
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.CHALLENGE_SELECT)} className="text-2xl px-10 py-5">
+                    New Challenge
                   </Button>
                 </div>
               </div>
