@@ -1,7 +1,7 @@
 // services/geminiService.ts
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { MathQuestion, MathQuestionSchema } from '../types';
+import { Question, QuestionSchema } from '../types'; // Updated import to use 'Question'
 
 /**
  * Initializes the GoogleGenAI client.
@@ -17,18 +17,33 @@ const getGeminiClient = () => {
 };
 
 /**
- * Generates a batch of math questions using the Gemini API.
+ * Generates a batch of math and situation-based questions using the Gemini API.
  *
  * @param count The number of questions to generate.
- * @param maxNum The maximum number value for the operands in the questions.
- * @returns A promise that resolves to an array of MathQuestion objects.
+ * @param maxNum The maximum number value for the operands in arithmetic questions.
+ * @returns A promise that resolves to an array of Question objects.
  */
-export const generateMathQuestions = async (count: number, maxNum: number): Promise<MathQuestion[]> => {
+export const generateGameQuestions = async (count: number, maxNum: number): Promise<Question[]> => { // Renamed function
   try {
     const ai = getGeminiClient();
-    const prompt = `Generate ${count} arithmetic problems (addition, subtraction, multiplication, and division) for a math game. Ensure division problems have integer results and positive operands.
-    For each problem, provide two numbers (num1, num2), the operation ('+', '-', '*', '/'), the correct answer, and the full question text.
-    Numbers should be between 1 and ${maxNum}.
+    const prompt = `Generate ${count} diverse math problems for a math game. Include a mix of arithmetic problems (addition, subtraction, multiplication, division) and situation-based word problems.
+    For arithmetic problems:
+    - Provide two numbers (num1, num2), the operation ('+', '-', '*', '/'), the correct numerical answer, and the full question text (e.g., "10 + 5 = ?").
+    - Ensure division problems have integer results and positive operands.
+    - Numbers should be between 1 and ${maxNum}.
+    - Set 'type' to 'arithmetic'.
+
+    For situation-based word problems:
+    - Provide a 'situationText' describing the scenario.
+    - Provide a 'questionText' that is the specific question derived from the situation (e.g., "How much money does Ali have left?").
+    - Provide the correct numerical 'answer'.
+    - Set 'type' to 'situation'.
+
+    Example situation problem:
+    situationText: "Ali buys RM2 candy. He has RM10 in hand."
+    questionText: "How much money does he have left after buying the candy?"
+    answer: 8
+
     Return the output in JSON format according to the provided schema.`;
 
     const response = await ai.models.generateContent({
@@ -44,17 +59,27 @@ export const generateMathQuestions = async (count: number, maxNum: number): Prom
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  num1: { type: Type.NUMBER, description: 'First number' },
-                  num2: { type: Type.NUMBER, description: 'Second number' },
+                  type: {
+                    type: Type.STRING,
+                    enum: ['arithmetic', 'situation'],
+                    description: 'Type of question'
+                  },
+                  // Arithmetic properties (optional for situation)
+                  num1: { type: Type.NUMBER, description: 'First number (for arithmetic)', optional: true },
+                  num2: { type: Type.NUMBER, description: 'Second number (for arithmetic)', optional: true },
                   operation: {
                     type: Type.STRING,
                     enum: ['+', '-', '*', '/'],
-                    description: 'Arithmetic operation'
+                    description: 'Arithmetic operation (for arithmetic)',
+                    optional: true
                   },
-                  answer: { type: Type.NUMBER, description: 'Correct answer' },
-                  questionText: { type: Type.STRING, description: 'The full question as a string, e.g., "10 + 5 = ?"' }
+                  // Common properties
+                  answer: { type: Type.NUMBER, description: 'Correct numerical answer' },
+                  questionText: { type: Type.STRING, description: 'The specific question to be solved' },
+                  // Situation properties (optional for arithmetic)
+                  situationText: { type: Type.STRING, description: 'Descriptive text for situation problems', optional: true }
                 },
-                required: ['num1', 'num2', 'operation', 'answer', 'questionText'],
+                required: ['type', 'answer', 'questionText'], // 'type', 'answer', 'questionText' are always required
               },
             },
           },
@@ -64,11 +89,11 @@ export const generateMathQuestions = async (count: number, maxNum: number): Prom
     });
 
     const jsonStr = response.text.trim();
-    const parsedData: MathQuestionSchema = JSON.parse(jsonStr);
+    const parsedData: QuestionSchema = JSON.parse(jsonStr);
 
     return parsedData.questions;
   } catch (error) {
-    console.error('Error generating math questions with Gemini API:', error);
+    console.error('Error generating game questions with Gemini API:', error);
     // Fallback or error handling logic
     return []; // Return an empty array on error
   }

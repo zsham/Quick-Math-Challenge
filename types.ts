@@ -9,8 +9,9 @@ export enum ViewMode {
   GAME = 'GAME',
   HISTORY = 'HISTORY',
   LEADERBOARD = 'LEADERBOARD',
-  ACTIVE_CHALLENGES = 'ACTIVE_CHALLENGES', // Renamed from CHALLENGE_SELECT to ACTIVE_CHALLENGES
-  STATISTICS = 'STATISTICS', // New view mode for personal statistics
+  ACTIVE_CHALLENGES = 'ACTIVE_CHALLENGES',
+  STATISTICS = 'STATISTICS',
+  PROFILE = 'PROFILE', // New view mode for user profile management
 }
 
 /**
@@ -26,20 +27,22 @@ export enum GamePhase {
 /**
  * Represents a single math question with its components and the correct answer.
  */
-export interface MathQuestion {
-  num1: number;
-  num2: number;
-  operation: '+' | '-' | '*' | '/';
+export interface Question { // Renamed from MathQuestion
+  type: 'arithmetic' | 'situation'; // New property to distinguish question types
+  num1?: number; // Optional for situation questions
+  num2?: number; // Optional for situation questions
+  operation?: '+' | '-' | '*' | '/'; // Optional for situation questions
   answer: number;
   questionText: string;
+  situationText?: string; // New property for situation-based questions
 }
 
 /**
  * Defines the schema for the JSON response expected from the Gemini API
  * when generating math questions.
  */
-export interface MathQuestionSchema {
-  questions: MathQuestion[];
+export interface QuestionSchema { // Renamed from MathQuestionSchema
+  questions: Question[];
 }
 
 /**

@@ -1,7 +1,7 @@
 // App.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ViewMode, GamePhase, MathQuestion, User, GameRecord, ChallengePosting } from './types';
-import { generateMathQuestions } from './services/geminiService';
+import { ViewMode, GamePhase, Question, User, GameRecord, ChallengePosting } from './types'; // Updated import to use 'Question'
+import { generateGameQuestions } from './services/geminiService'; // Renamed import
 import Button from './components/Button';
 import Timer from './components/Timer';
 import ScoreDisplay from './components/ScoreDisplay';
@@ -9,8 +9,9 @@ import QuestionCard from './components/QuestionCard';
 import AuthForm from './components/AuthForm';
 import GameHistory from './components/GameHistory';
 import Leaderboard from './components/Leaderboard';
-import ActiveChallenges from './components/ActiveChallenges'; // Correct import for ActiveChallenges
-import Statistics from './components/Statistics'; // New import for Statistics
+import ActiveChallenges from './components/ActiveChallenges';
+import Statistics from './components/Statistics';
+import ProfileForm from './components/ProfileForm'; // New import for ProfileForm
 import { GAME_DURATION_SECONDS, NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS } from './constants';
 
 // --- Local Storage Utility Functions ---
@@ -88,7 +89,7 @@ function App() {
   const [currentViewMode, setCurrentViewMode] = useState<ViewMode>(ViewMode.LOGIN);
   const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>(GamePhase.IDLE); // Internal game state
-  const [questions, setQuestions] = useState<MathQuestion[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]); // Updated type to 'Question'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(GAME_DURATION_SECONDS);
@@ -142,7 +143,7 @@ function App() {
     setGamePhase(GamePhase.LOADING_QUESTIONS);
     setChallengePostedMessage(null); // Clear challenge message when starting a new game
     try {
-      const fetchedQuestions = await generateMathQuestions(NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS);
+      const fetchedQuestions = await generateGameQuestions(NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS); // Changed function call
       if (fetchedQuestions.length > 0) {
         setQuestions(fetchedQuestions);
         setGamePhase(GamePhase.PLAYING);
@@ -253,6 +254,17 @@ function App() {
     saveActiveChallenges(updatedChallenges);
   };
 
+  const handleUpdatePassword = (username: string, newPasswordHash: string) => {
+    const users = loadUsers();
+    const user = users.get(username);
+    if (user) {
+      user.passwordHash = newPasswordHash;
+      users.set(username, user);
+      saveUsers(users);
+      // Optionally provide feedback in ProfileForm
+    }
+  };
+
 
   const renderContent = () => {
     switch (currentViewMode) {
@@ -294,7 +306,7 @@ function App() {
             loadGameRecords={loadGameRecords}
           />
         );
-      case ViewMode.ACTIVE_CHALLENGES: // Updated case name
+      case ViewMode.ACTIVE_CHALLENGES:
         return (
           <ActiveChallenges
             onBackToGame={() => {
@@ -309,7 +321,7 @@ function App() {
             onRemoveChallenge={handleRemoveChallenge}
           />
         );
-      case ViewMode.STATISTICS: // New case for Statistics
+      case ViewMode.STATISTICS:
         return (
           <Statistics
             username={loggedInUser!}
@@ -320,6 +332,19 @@ function App() {
               setChallengePostedMessage(null);
             }}
             loadGameRecords={loadGameRecords}
+          />
+        );
+      case ViewMode.PROFILE: // New case for ProfileForm
+        return (
+          <ProfileForm
+            username={loggedInUser!}
+            onBackToGame={() => {
+              setCurrentViewMode(ViewMode.GAME);
+              setGamePhase(GamePhase.IDLE);
+              setChallengedRecord(null); // Clear challenge when going back to game idle
+              setChallengePostedMessage(null);
+            }}
+            onUpdatePassword={handleUpdatePassword}
           />
         );
       case ViewMode.GAME:
@@ -336,6 +361,9 @@ function App() {
                 </Button>
                 <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-sm px-4 py-2">
                   Statistics
+                </Button>
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.PROFILE)} className="text-sm px-4 py-2">
+                  Profile
                 </Button>
                 <Button variant="danger" onClick={handleLogout} className="text-sm px-4 py-2">
                   Logout

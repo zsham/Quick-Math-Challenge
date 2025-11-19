@@ -1,11 +1,11 @@
 // components/QuestionCard.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { MathQuestion } from '../types';
+import { Question } from '../types'; // Updated import to use 'Question'
 import Input from './Input';
 import Button from './Button';
 
 interface QuestionCardProps {
-  question: MathQuestion;
+  question: Question; // Updated prop type to 'Question'
   onAnswer: (isCorrect: boolean) => void;
   questionNumber: number;
   totalQuestions: number;
@@ -48,6 +48,9 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   return (
     <div className="bg-gradient-to-br from-indigo-700 to-purple-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-auto text-white text-center border-4 border-indigo-500">
       <div className="text-lg font-medium mb-2 opacity-80">Question {questionNumber} / {totalQuestions}</div>
+      {question.type === 'situation' && question.situationText && (
+        <p className="text-xl text-gray-200 mb-4">{question.situationText}</p>
+      )}
       <h2 className="text-5xl md:text-6xl font-extrabold mb-8 drop-shadow-lg leading-tight">
         {question.questionText}
       </h2>
