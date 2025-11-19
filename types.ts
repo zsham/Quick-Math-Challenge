@@ -9,7 +9,8 @@ export enum ViewMode {
   GAME = 'GAME',
   HISTORY = 'HISTORY',
   LEADERBOARD = 'LEADERBOARD',
-  CHALLENGE_SELECT = 'CHALLENGE_SELECT', // New view mode for selecting a challenge
+  ACTIVE_CHALLENGES = 'ACTIVE_CHALLENGES', // Renamed from CHALLENGE_SELECT to ACTIVE_CHALLENGES
+  STATISTICS = 'STATISTICS', // New view mode for personal statistics
 }
 
 /**
@@ -60,4 +61,16 @@ export interface GameRecord {
   score: number;
   totalQuestions: number;
   date: string; // ISO 8601 string representation of the date
+}
+
+/**
+ * Represents a game record that has been posted as an active challenge.
+ */
+export interface ChallengePosting {
+  id: string; // Unique ID for the challenge posting
+  originalRecordId: string; // The ID of the GameRecord this challenge is based on
+  username: string;
+  score: number;
+  totalQuestions: number;
+  datePosted: string; // ISO 8601 string representation of when the challenge was posted
 }

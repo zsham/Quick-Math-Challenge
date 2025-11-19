@@ -1,6 +1,6 @@
 // App.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ViewMode, GamePhase, MathQuestion, User, GameRecord } from './types';
+import { ViewMode, GamePhase, MathQuestion, User, GameRecord, ChallengePosting } from './types';
 import { generateMathQuestions } from './services/geminiService';
 import Button from './components/Button';
 import Timer from './components/Timer';
@@ -9,12 +9,14 @@ import QuestionCard from './components/QuestionCard';
 import AuthForm from './components/AuthForm';
 import GameHistory from './components/GameHistory';
 import Leaderboard from './components/Leaderboard';
-import ChallengeSelect from './components/ChallengeSelect'; // New import for ChallengeSelect
+import ActiveChallenges from './components/ActiveChallenges'; // Correct import for ActiveChallenges
+import Statistics from './components/Statistics'; // New import for Statistics
 import { GAME_DURATION_SECONDS, NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS } from './constants';
 
 // --- Local Storage Utility Functions ---
 const LOCAL_STORAGE_USERS_KEY = 'quickMathUsers';
 const LOCAL_STORAGE_RECORDS_PREFIX = 'quickMathRecords_';
+const LOCAL_STORAGE_ACTIVE_CHALLENGES_KEY = 'quickMathActiveChallenges'; // New key for active challenges
 
 const loadUsers = (): Map<string, User> => {
   try {
@@ -62,6 +64,24 @@ const loadAllGameRecords = (users: Map<string, User>): GameRecord[] => {
   });
   return allRecords;
 };
+
+const loadActiveChallenges = (): ChallengePosting[] => {
+  try {
+    const challengesJson = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CHALLENGES_KEY);
+    return challengesJson ? JSON.parse(challengesJson) : [];
+  } catch (error) {
+    console.error('Error loading active challenges from localStorage:', error);
+    return [];
+  }
+};
+
+const saveActiveChallenges = (challenges: ChallengePosting[]) => {
+  try {
+    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CHALLENGES_KEY, JSON.stringify(challenges));
+  } catch (error) {
+    console.error('Error saving active challenges to localStorage:', error);
+  }
+};
 // --- End Local Storage Utility Functions ---
 
 function App() {
@@ -73,7 +93,8 @@ function App() {
   const [score, setScore] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(GAME_DURATION_SECONDS);
   const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null); // null, true, false
-  const [challengedRecord, setChallengedRecord] = useState<GameRecord | null>(null); // New state for challenge mode
+  const [challengedRecord, setChallengedRecord] = useState<GameRecord | null>(null); // State for active challenge game
+  const [challengePostedMessage, setChallengePostedMessage] = useState<string | null>(null); // Feedback for posting challenge
   const timerRef = useRef<number | null>(null);
 
   // Initialize view mode based on logged in user
@@ -119,6 +140,7 @@ function App() {
       return;
     }
     setGamePhase(GamePhase.LOADING_QUESTIONS);
+    setChallengePostedMessage(null); // Clear challenge message when starting a new game
     try {
       const fetchedQuestions = await generateMathQuestions(NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS);
       if (fetchedQuestions.length > 0) {
@@ -166,6 +188,7 @@ function App() {
         date: new Date().toISOString(),
       };
       saveGameRecord(loggedInUser, newRecord);
+      setChallengedRecord(null); // Clear challenged record after game completion
     }
   }, [gamePhase, loggedInUser, score, questions.length]);
 
@@ -186,13 +209,50 @@ function App() {
     setCurrentViewMode(ViewMode.LOGIN);
     setGamePhase(GamePhase.IDLE); // Clear game state
     setChallengedRecord(null); // Clear any active challenge
+    setChallengePostedMessage(null); // Clear any challenge posted message
   };
 
-  const startChallengeGame = (record: GameRecord) => {
-    setChallengedRecord(record);
+  const startChallengeGame = (challenge: ChallengePosting) => {
+    // Convert ChallengePosting to a GameRecord-like object for challengedRecord state
+    const targetRecord: GameRecord = {
+      id: challenge.originalRecordId,
+      username: challenge.username,
+      score: challenge.score,
+      totalQuestions: challenge.totalQuestions,
+      date: challenge.datePosted, // Using datePosted as a placeholder for date
+    };
+    setChallengedRecord(targetRecord);
     fetchQuestions(); // This will set gamePhase to PLAYING
     setCurrentViewMode(ViewMode.GAME);
   };
+
+  const handlePostChallenge = () => {
+    if (loggedInUser && gamePhase === GamePhase.FINISHED && questions.length > 0) {
+      const currentRecords = loadGameRecords(loggedInUser);
+      const lastGameRecord = currentRecords[currentRecords.length - 1]; // Get the just-finished game record
+
+      if (lastGameRecord) {
+        const newChallenge: ChallengePosting = {
+          id: crypto.randomUUID(),
+          originalRecordId: lastGameRecord.id,
+          username: loggedInUser,
+          score: lastGameRecord.score,
+          totalQuestions: lastGameRecord.totalQuestions,
+          datePosted: new Date().toISOString(),
+        };
+        const existingChallenges = loadActiveChallenges();
+        saveActiveChallenges([...existingChallenges, newChallenge]);
+        setChallengePostedMessage('Your score has been posted as a challenge!');
+      }
+    }
+  };
+
+  const handleRemoveChallenge = (challengeId: string) => {
+    const existingChallenges = loadActiveChallenges();
+    const updatedChallenges = existingChallenges.filter(c => c.id !== challengeId);
+    saveActiveChallenges(updatedChallenges);
+  };
+
 
   const renderContent = () => {
     switch (currentViewMode) {
@@ -216,6 +276,7 @@ function App() {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
               setChallengedRecord(null); // Clear challenge when going back to game idle
+              setChallengePostedMessage(null);
             }}
             loadGameRecords={loadGameRecords}
           />
@@ -227,23 +288,38 @@ function App() {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
               setChallengedRecord(null); // Clear challenge when going back to game idle
+              setChallengePostedMessage(null);
             }}
             loadUsers={loadUsers}
             loadGameRecords={loadGameRecords}
           />
         );
-      case ViewMode.CHALLENGE_SELECT: // New case for Challenge Selection
+      case ViewMode.ACTIVE_CHALLENGES: // Updated case name
         return (
-          <ChallengeSelect
+          <ActiveChallenges
             onBackToGame={() => {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
               setChallengedRecord(null); // Clear challenge when going back to game idle
+              setChallengePostedMessage(null);
             }}
             onStartChallenge={startChallengeGame}
-            loadUsers={loadUsers}
-            loadAllGameRecords={loadAllGameRecords}
-            currentUser={loggedInUser}
+            loggedInUser={loggedInUser}
+            loadActiveChallenges={loadActiveChallenges}
+            onRemoveChallenge={handleRemoveChallenge}
+          />
+        );
+      case ViewMode.STATISTICS: // New case for Statistics
+        return (
+          <Statistics
+            username={loggedInUser!}
+            onBackToGame={() => {
+              setCurrentViewMode(ViewMode.GAME);
+              setGamePhase(GamePhase.IDLE);
+              setChallengedRecord(null); // Clear challenge when going back to game idle
+              setChallengePostedMessage(null);
+            }}
+            loadGameRecords={loadGameRecords}
           />
         );
       case ViewMode.GAME:
@@ -257,6 +333,9 @@ function App() {
                 </Button>
                 <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-sm px-4 py-2">
                   Leaderboard
+                </Button>
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-sm px-4 py-2">
+                  Statistics
                 </Button>
                 <Button variant="danger" onClick={handleLogout} className="text-sm px-4 py-2">
                   Logout
@@ -278,8 +357,8 @@ function App() {
                   <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
                     {challengedRecord ? 'Re-Challenge' : 'Start Game'}
                   </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.CHALLENGE_SELECT)} className="text-2xl px-10 py-5">
-                    Challenge Mode
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-2xl px-10 py-5">
+                    Active Challenges
                   </Button>
                 </div>
               </div>
@@ -328,18 +407,29 @@ function App() {
                     )}
                   </div>
                 )}
-                <div className="space-x-4">
+                {challengePostedMessage && (
+                  <p className="text-emerald-300 text-xl mt-4 animate-pulse">{challengePostedMessage}</p>
+                )}
+                <div className="space-x-4 mt-8">
                   <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
                     Play Again
                   </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-2xl px-10 py-5">
+                  <Button variant="secondary" onClick={handlePostChallenge} className="text-2xl px-10 py-5" disabled={!!challengePostedMessage}>
+                    Post as Challenge
+                  </Button>
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-2xl px-10 py-5">
+                    Active Challenges
+                  </Button>
+                </div>
+                <div className="space-x-4 mt-4">
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-xl px-8 py-4">
                     View History
                   </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-2xl px-10 py-5">
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-xl px-8 py-4">
                     Leaderboard
                   </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.CHALLENGE_SELECT)} className="text-2xl px-10 py-5">
-                    New Challenge
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-xl px-8 py-4">
+                    Statistics
                   </Button>
                 </div>
               </div>
