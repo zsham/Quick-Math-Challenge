@@ -1,7 +1,7 @@
 // App.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ViewMode, GamePhase, Question, User, GameRecord, ChallengePosting } from './types'; // Updated import to use 'Question'
-import { generateGameQuestions } from './services/geminiService'; // Renamed import
+import { ViewMode, GamePhase, Question, User, GameRecord, ChallengePosting } from './types';
+import { generateGameQuestions } from './services/geminiService';
 import Button from './components/Button';
 import Timer from './components/Timer';
 import ScoreDisplay from './components/ScoreDisplay';
@@ -11,13 +11,14 @@ import GameHistory from './components/GameHistory';
 import Leaderboard from './components/Leaderboard';
 import ActiveChallenges from './components/ActiveChallenges';
 import Statistics from './components/Statistics';
-import ProfileForm from './components/ProfileForm'; // New import for ProfileForm
+import ProfileForm from './components/ProfileForm';
+import Navbar from './components/Navbar';
 import { GAME_DURATION_SECONDS, NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS } from './constants';
 
 // --- Local Storage Utility Functions ---
 const LOCAL_STORAGE_USERS_KEY = 'quickMathUsers';
 const LOCAL_STORAGE_RECORDS_PREFIX = 'quickMathRecords_';
-const LOCAL_STORAGE_ACTIVE_CHALLENGES_KEY = 'quickMathActiveChallenges'; // New key for active challenges
+const LOCAL_STORAGE_ACTIVE_CHALLENGES_KEY = 'quickMathActiveChallenges';
 
 const loadUsers = (): Map<string, User> => {
   try {
@@ -57,15 +58,6 @@ const saveGameRecord = (username: string, record: GameRecord) => {
   }
 };
 
-// Function to load all game records for all users
-const loadAllGameRecords = (users: Map<string, User>): GameRecord[] => {
-  let allRecords: GameRecord[] = [];
-  users.forEach((_user, username) => {
-    allRecords = allRecords.concat(loadGameRecords(username));
-  });
-  return allRecords;
-};
-
 const loadActiveChallenges = (): ChallengePosting[] => {
   try {
     const challengesJson = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CHALLENGES_KEY);
@@ -87,25 +79,23 @@ const saveActiveChallenges = (challenges: ChallengePosting[]) => {
 
 function App() {
   const [currentViewMode, setCurrentViewMode] = useState<ViewMode>(ViewMode.LOGIN);
-  const [loggedInUser, setLoggedInUser] = useState<User | null>(null); // Changed to User object
-  const [gamePhase, setGamePhase] = useState<GamePhase>(GamePhase.IDLE); // Internal game state
-  const [questions, setQuestions] = useState<Question[]>([]); // Updated type to 'Question'
+  const [loggedInUser, setLoggedInUser] = useState<User | null>(null);
+  const [gamePhase, setGamePhase] = useState<GamePhase>(GamePhase.IDLE);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
   const [timeLeft, setTimeLeft] = useState<number>(GAME_DURATION_SECONDS);
-  const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null); // null, true, false
-  const [challengedRecord, setChallengedRecord] = useState<GameRecord | null>(null); // State for active challenge game
-  const [challengePostedMessage, setChallengePostedMessage] = useState<string | null>(null); // Feedback for posting challenge
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState<boolean | null>(null);
+  const [challengedRecord, setChallengedRecord] = useState<GameRecord | null>(null);
+  const [challengePostedMessage, setChallengePostedMessage] = useState<string | null>(null);
   const timerRef = useRef<number | null>(null);
 
-  // Initialize view mode based on logged in user
   useEffect(() => {
     if (!loggedInUser) {
       setCurrentViewMode(ViewMode.LOGIN);
     }
   }, [loggedInUser]);
 
-  // Timer logic
   useEffect(() => {
     if (currentViewMode === ViewMode.GAME && gamePhase === GamePhase.PLAYING) {
       if (timerRef.current !== null) {
@@ -126,8 +116,6 @@ function App() {
         clearInterval(timerRef.current);
       }
     }
-
-    // Cleanup on component unmount
     return () => {
       if (timerRef.current !== null) {
         clearInterval(timerRef.current);
@@ -137,13 +125,13 @@ function App() {
 
   const fetchQuestions = useCallback(async () => {
     if (!loggedInUser) {
-      setCurrentViewMode(ViewMode.LOGIN); // Ensure user is logged in
+      setCurrentViewMode(ViewMode.LOGIN);
       return;
     }
     setGamePhase(GamePhase.LOADING_QUESTIONS);
-    setChallengePostedMessage(null); // Clear challenge message when starting a new game
+    setChallengePostedMessage(null);
     try {
-      const fetchedQuestions = await generateGameQuestions(NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS); // Changed function call
+      const fetchedQuestions = await generateGameQuestions(NUMBER_OF_QUESTIONS, MAX_NUMBER_FOR_QUESTIONS);
       if (fetchedQuestions.length > 0) {
         setQuestions(fetchedQuestions);
         setGamePhase(GamePhase.PLAYING);
@@ -153,11 +141,11 @@ function App() {
         setLastAnswerCorrect(null);
       } else {
         console.error('No questions fetched.');
-        setGamePhase(GamePhase.IDLE); // Revert to IDLE if no questions
+        setGamePhase(GamePhase.IDLE);
       }
     } catch (error) {
       console.error('Failed to fetch questions:', error);
-      setGamePhase(GamePhase.IDLE); // Revert to IDLE on error
+      setGamePhase(GamePhase.IDLE);
     }
   }, [loggedInUser]);
 
@@ -166,8 +154,6 @@ function App() {
     if (isCorrect) {
       setScore((prevScore) => prevScore + 1);
     }
-
-    // Move to the next question or end the game
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prevIndex) => prevIndex + 1);
     } else {
@@ -179,17 +165,16 @@ function App() {
   };
 
   useEffect(() => {
-    // When game finishes, save the record
     if (gamePhase === GamePhase.FINISHED && loggedInUser && questions.length > 0) {
       const newRecord: GameRecord = {
-        id: crypto.randomUUID(), // Unique ID for each record
+        id: crypto.randomUUID(),
         username: loggedInUser.username,
         score: score,
         totalQuestions: questions.length,
         date: new Date().toISOString(),
       };
       saveGameRecord(loggedInUser.username, newRecord);
-      setChallengedRecord(null); // Clear challenged record after game completion
+      setChallengedRecord(null);
     }
   }, [gamePhase, loggedInUser, score, questions.length]);
 
@@ -197,20 +182,18 @@ function App() {
     const users = loadUsers();
     const user = users.get(username);
     if (user) {
-      setLoggedInUser(user); // Set full User object
+      setLoggedInUser(user);
       setCurrentViewMode(ViewMode.GAME);
       setGamePhase(GamePhase.IDLE);
     }
   };
 
   const handleRegister = (username: string) => {
-    // Re-load user to get full object (though logic in AuthForm handles creation)
     const users = loadUsers();
     const user = users.get(username);
     if (user) {
       setLoggedInUser(user);
     } else {
-        // Fallback if not found immediately (shouldn't happen with sync code)
         setLoggedInUser({ username, passwordHash: '' }); 
     }
     setCurrentViewMode(ViewMode.GAME);
@@ -220,29 +203,28 @@ function App() {
   const handleLogout = () => {
     setLoggedInUser(null);
     setCurrentViewMode(ViewMode.LOGIN);
-    setGamePhase(GamePhase.IDLE); // Clear game state
-    setChallengedRecord(null); // Clear any active challenge
-    setChallengePostedMessage(null); // Clear any challenge posted message
+    setGamePhase(GamePhase.IDLE);
+    setChallengedRecord(null);
+    setChallengePostedMessage(null);
   };
 
   const startChallengeGame = (challenge: ChallengePosting) => {
-    // Convert ChallengePosting to a GameRecord-like object for challengedRecord state
     const targetRecord: GameRecord = {
       id: challenge.originalRecordId,
       username: challenge.username,
       score: challenge.score,
       totalQuestions: challenge.totalQuestions,
-      date: challenge.datePosted, // Using datePosted as a placeholder for date
+      date: challenge.datePosted,
     };
     setChallengedRecord(targetRecord);
-    fetchQuestions(); // This will set gamePhase to PLAYING
+    fetchQuestions();
     setCurrentViewMode(ViewMode.GAME);
   };
 
   const handlePostChallenge = () => {
     if (loggedInUser && gamePhase === GamePhase.FINISHED && questions.length > 0) {
       const currentRecords = loadGameRecords(loggedInUser.username);
-      const lastGameRecord = currentRecords[currentRecords.length - 1]; // Get the just-finished game record
+      const lastGameRecord = currentRecords[currentRecords.length - 1];
 
       if (lastGameRecord) {
         const newChallenge: ChallengePosting = {
@@ -268,12 +250,9 @@ function App() {
 
   const handleUpdateProfile = (updateData: Partial<User & { newPassword?: string }>) => {
     if (!loggedInUser) return;
-
     const users = loadUsers();
     const user = users.get(loggedInUser.username);
-    
     if (user) {
-      // Update fields if present
       if (updateData.displayName !== undefined) user.displayName = updateData.displayName;
       if (updateData.email !== undefined) user.email = updateData.email;
       if (updateData.profilePictureBase64 !== undefined) user.profilePictureBase64 = updateData.profilePictureBase64;
@@ -281,49 +260,51 @@ function App() {
 
       users.set(loggedInUser.username, user);
       saveUsers(users);
-      
-      // Update local state immediately so UI reflects changes
       setLoggedInUser({ ...user }); 
     }
   };
 
+  const handleNavbarNavigate = (view: ViewMode) => {
+    // If going back to the main game screen, reset IDLE state to avoid confusing states
+    if (view === ViewMode.GAME) {
+        setGamePhase(GamePhase.IDLE);
+        setChallengedRecord(null);
+        setChallengePostedMessage(null);
+    }
+    setCurrentViewMode(view);
+  };
 
   const renderContent = () => {
-    switch (currentViewMode) {
-      case ViewMode.LOGIN:
-      case ViewMode.REGISTER:
+    // Auth screens don't get the navbar (handled in main return)
+    if (currentViewMode === ViewMode.LOGIN || currentViewMode === ViewMode.REGISTER) {
         return (
-          <AuthForm
-            viewMode={currentViewMode}
-            onSwitchView={(mode) => setCurrentViewMode(mode)}
-            onLogin={handleLogin}
-            onRegister={handleRegister}
-            loadUsers={loadUsers}
-            saveUsers={saveUsers}
-          />
+            <div className="flex-grow flex items-center justify-center w-full">
+              <AuthForm
+                  viewMode={currentViewMode}
+                  onSwitchView={(mode) => setCurrentViewMode(mode)}
+                  onLogin={handleLogin}
+                  onRegister={handleRegister}
+                  loadUsers={loadUsers}
+                  saveUsers={saveUsers}
+              />
+            </div>
         );
+    }
+
+    // Main App Content
+    switch (currentViewMode) {
       case ViewMode.HISTORY:
         return (
           <GameHistory
             username={loggedInUser!.username}
-            onBackToGame={() => {
-              setCurrentViewMode(ViewMode.GAME);
-              setGamePhase(GamePhase.IDLE);
-              setChallengedRecord(null); // Clear challenge when going back to game idle
-              setChallengePostedMessage(null);
-            }}
+            onBackToGame={() => handleNavbarNavigate(ViewMode.GAME)}
             loadGameRecords={loadGameRecords}
           />
         );
       case ViewMode.LEADERBOARD:
         return (
           <Leaderboard
-            onBackToGame={() => {
-              setCurrentViewMode(ViewMode.GAME);
-              setGamePhase(GamePhase.IDLE);
-              setChallengedRecord(null); // Clear challenge when going back to game idle
-              setChallengePostedMessage(null);
-            }}
+            onBackToGame={() => handleNavbarNavigate(ViewMode.GAME)}
             loadUsers={loadUsers}
             loadGameRecords={loadGameRecords}
           />
@@ -331,12 +312,7 @@ function App() {
       case ViewMode.ACTIVE_CHALLENGES:
         return (
           <ActiveChallenges
-            onBackToGame={() => {
-              setCurrentViewMode(ViewMode.GAME);
-              setGamePhase(GamePhase.IDLE);
-              setChallengedRecord(null); // Clear challenge when going back to game idle
-              setChallengePostedMessage(null);
-            }}
+            onBackToGame={() => handleNavbarNavigate(ViewMode.GAME)}
             onStartChallenge={startChallengeGame}
             loggedInUser={loggedInUser ? loggedInUser.username : null}
             loadActiveChallenges={loadActiveChallenges}
@@ -347,66 +323,23 @@ function App() {
         return (
           <Statistics
             username={loggedInUser!.username}
-            onBackToGame={() => {
-              setCurrentViewMode(ViewMode.GAME);
-              setGamePhase(GamePhase.IDLE);
-              setChallengedRecord(null); // Clear challenge when going back to game idle
-              setChallengePostedMessage(null);
-            }}
+            onBackToGame={() => handleNavbarNavigate(ViewMode.GAME)}
             loadGameRecords={loadGameRecords}
           />
         );
-      case ViewMode.PROFILE: // New case for ProfileForm
+      case ViewMode.PROFILE:
         return (
           <ProfileForm
             currentUser={loggedInUser!}
-            onBackToGame={() => {
-              setCurrentViewMode(ViewMode.GAME);
-              setGamePhase(GamePhase.IDLE);
-              setChallengedRecord(null); // Clear challenge when going back to game idle
-              setChallengePostedMessage(null);
-            }}
+            onBackToGame={() => handleNavbarNavigate(ViewMode.GAME)}
             onUpdateProfile={handleUpdateProfile}
           />
         );
       case ViewMode.GAME:
         return (
-          <>
-            <div className="flex justify-between w-full max-w-4xl mb-8 items-center px-6 py-4 bg-white/30 backdrop-blur-md rounded-2xl shadow-lg border border-white/50">
-              <div className="flex items-center gap-3">
-                 {loggedInUser?.profilePictureBase64 ? (
-                     <img src={loggedInUser.profilePictureBase64} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" />
-                 ) : (
-                    <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold border-2 border-white shadow-sm">
-                        {loggedInUser?.displayName?.charAt(0).toUpperCase() || loggedInUser?.username.charAt(0).toUpperCase()}
-                    </div>
-                 )}
-                 <h2 className="text-xl font-bold text-indigo-900">
-                     Hi, {loggedInUser?.displayName || loggedInUser?.username}!
-                 </h2>
-              </div>
-              
-              <div className="flex space-x-2 flex-wrap justify-end gap-y-2">
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
-                  History
-                </Button>
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
-                  Leaderboard
-                </Button>
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
-                  Stats
-                </Button>
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.PROFILE)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
-                  Profile
-                </Button>
-                <Button variant="danger" onClick={handleLogout} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
-                  Logout
-                </Button>
-              </div>
-            </div>
-
+          <div className="w-full flex flex-col items-center justify-center p-4">
             {gamePhase === GamePhase.IDLE && (
-              <div className="text-center w-full max-w-3xl">
+              <div className="text-center w-full max-w-3xl animate-fade-in">
                 <h1 className="text-6xl md:text-8xl font-black text-white mb-8 drop-shadow-xl tracking-tight">Quick Math<br/>Challenge</h1>
                 <p className="text-2xl text-indigo-900 font-medium mb-12 max-w-lg mx-auto leading-relaxed bg-white/40 backdrop-blur-sm p-4 rounded-xl shadow-sm">
                     Test your mental math skills against the clock! 🧠✨
@@ -421,16 +354,13 @@ function App() {
                   <Button onClick={fetchQuestions} className="text-2xl px-12 py-6 rounded-3xl shadow-xl hover:scale-105 transform transition-transform">
                     {challengedRecord ? 'Start Challenge!' : 'Start Game! 🚀'}
                   </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-xl px-10 py-6 rounded-3xl">
-                    Active Challenges
-                  </Button>
                 </div>
               </div>
             )}
 
             {gamePhase === GamePhase.LOADING_QUESTIONS && (
               <div className="text-center bg-white/50 backdrop-blur-md p-12 rounded-3xl shadow-xl">
-                <div className="text-6xl mb-4">🎲</div>
+                <div className="text-6xl mb-4 animate-bounce">🎲</div>
                 <div className="text-indigo-900 text-3xl font-bold animate-pulse">
                   Generating Fun...
                 </div>
@@ -457,7 +387,7 @@ function App() {
             )}
 
             {gamePhase === GamePhase.FINISHED && (
-              <div className="text-center bg-white/95 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border-4 border-white w-full max-w-2xl mx-auto">
+              <div className="text-center bg-white/95 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border-4 border-white w-full max-w-2xl mx-auto animate-pop-in">
                 <h1 className="text-5xl md:text-7xl font-black text-indigo-900 mb-8">Game Over!</h1>
                 <p className="text-5xl font-black text-emerald-500 mb-8 bg-emerald-50 inline-block px-8 py-4 rounded-2xl">
                     Score: {score} <span className="text-2xl text-gray-400 font-bold">/ {questions.length}</span>
@@ -493,13 +423,10 @@ function App() {
                         Post Challenge 📢
                       </Button>
                   </div>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-lg px-8 py-4 bg-purple-100 text-purple-700 hover:bg-purple-200 shadow-none border-2 border-purple-200">
-                    See Other Challenges
-                  </Button>
                 </div>
               </div>
             )}
-          </>
+          </div>
         );
       default:
         return null;
@@ -507,8 +434,16 @@ function App() {
   };
 
   return (
-    <div className="container mx-auto flex flex-col items-center justify-center p-4 min-h-screen">
-      {renderContent()}
+    <div className="container mx-auto min-h-screen flex flex-col">
+       {loggedInUser && currentViewMode !== ViewMode.LOGIN && currentViewMode !== ViewMode.REGISTER && (
+          <Navbar 
+             user={loggedInUser} 
+             currentView={currentViewMode} 
+             onNavigate={handleNavbarNavigate} 
+             onLogout={handleLogout} 
+          />
+       )}
+       {renderContent()}
     </div>
   );
 }
