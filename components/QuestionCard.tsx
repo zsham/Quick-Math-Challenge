@@ -40,18 +40,20 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   const feedbackClass = lastAnswerCorrect === true
-    ? 'border-emerald-400 text-emerald-400'
+    ? 'border-emerald-400 ring-4 ring-emerald-100'
     : lastAnswerCorrect === false
-    ? 'border-red-400 text-red-400'
-    : 'border-blue-400 text-blue-400';
+    ? 'border-rose-400 ring-4 ring-rose-100'
+    : 'border-gray-200';
 
   return (
-    <div className="bg-gradient-to-br from-indigo-700 to-purple-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg mx-auto text-white text-center border-4 border-indigo-500">
-      <div className="text-lg font-medium mb-2 opacity-80">Question {questionNumber} / {totalQuestions}</div>
+    <div className="bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-xl w-full max-w-lg mx-auto text-center border-4 border-white">
+      <div className="text-lg font-bold text-indigo-400 mb-2 uppercase tracking-wide">Question {questionNumber} / {totalQuestions}</div>
       {question.type === 'situation' && question.situationText && (
-        <p className="text-xl text-gray-200 mb-4">{question.situationText}</p>
+        <div className="bg-blue-50 p-4 rounded-xl mb-6">
+            <p className="text-xl text-gray-700 font-medium leading-relaxed">{question.situationText}</p>
+        </div>
       )}
-      <h2 className="text-5xl md:text-6xl font-extrabold mb-8 drop-shadow-lg leading-tight">
+      <h2 className="text-4xl md:text-5xl font-black mb-8 text-indigo-900 leading-tight">
         {question.questionText}
       </h2>
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -60,12 +62,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({
           type="number"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Your Answer"
+          placeholder="?"
           aria-label="Enter your answer"
-          className={`text-center transition-all duration-300 ${feedbackClass}`}
+          className={`text-center text-4xl font-bold py-6 transition-all duration-300 ${feedbackClass}`}
         />
-        <Button type="submit" className="w-full text-xl py-4">
-          {isLastQuestion ? 'Finish Game' : 'Submit Answer'}
+        <Button type="submit" className="w-full text-xl py-4 rounded-2xl">
+          {isLastQuestion ? 'Finish Game 🏁' : 'Submit Answer ✨'}
         </Button>
       </form>
     </div>

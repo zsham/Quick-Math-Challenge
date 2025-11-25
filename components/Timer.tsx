@@ -12,8 +12,8 @@ const Timer: React.FC<TimerProps> = ({ timeLeft }) => {
   const displayTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
   return (
-    <div className="text-3xl font-bold text-white mb-6 text-center">
-      Time Left: <span className={timeLeft <= 10 ? 'text-red-400' : 'text-yellow-300'}>{displayTime}</span>
+    <div className="text-3xl font-black text-indigo-900 mb-6 text-center drop-shadow-sm bg-white/30 backdrop-blur-md py-2 px-6 rounded-full inline-block mx-auto">
+      ⏰ <span className={timeLeft <= 10 ? 'text-rose-500' : 'text-indigo-800'}>{displayTime}</span>
     </div>
   );
 };

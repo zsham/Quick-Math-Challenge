@@ -20,27 +20,30 @@ const GameHistory: React.FC<GameHistoryProps> = ({ username, onBackToGame, loadG
   }, [username, loadGameRecords]);
 
   return (
-    <div className="bg-gradient-to-br from-indigo-700 to-purple-800 p-8 rounded-2xl shadow-2xl w-full max-w-2xl mx-auto text-white border-4 border-indigo-500">
-      <h2 className="text-4xl font-extrabold mb-8 drop-shadow-lg text-center">
-        {username}'s Game History
+    <div className="bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-xl w-full max-w-2xl mx-auto border-4 border-white">
+      <h2 className="text-3xl font-extrabold mb-8 text-indigo-900 text-center">
+        {username}'s History
       </h2>
 
       {records.length === 0 ? (
-        <p className="text-center text-gray-300 text-xl">No games played yet. Go challenge yourself!</p>
+        <p className="text-center text-gray-500 text-xl py-8">No games played yet. Go challenge yourself!</p>
       ) : (
-        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+        <div className="space-y-4 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
           {records.map((record, index) => (
             <div
               key={record.id}
-              className={`flex justify-between items-center p-4 rounded-lg shadow-md ${
-                index % 2 === 0 ? 'bg-indigo-600/70' : 'bg-purple-700/70'
+              className={`flex justify-between items-center p-5 rounded-2xl transition-transform hover:scale-[1.01] ${
+                index % 2 === 0 ? 'bg-sky-50' : 'bg-purple-50'
               }`}
             >
               <div>
-                <p className="font-semibold text-lg">Score: <span className="text-emerald-300">{record.score}</span> / {record.totalQuestions}</p>
-                <p className="text-sm text-gray-300">
+                <p className="font-bold text-xl text-gray-800">Score: <span className="text-indigo-600">{record.score}</span> / {record.totalQuestions}</p>
+                <p className="text-sm text-gray-500 font-medium">
                   {new Date(record.date).toLocaleString()}
                 </p>
+              </div>
+              <div className="text-2xl">
+                {record.score === record.totalQuestions ? '🏆' : '📜'}
               </div>
             </div>
           ))}
@@ -48,7 +51,7 @@ const GameHistory: React.FC<GameHistoryProps> = ({ username, onBackToGame, loadG
       )}
 
       <div className="mt-8 text-center">
-        <Button onClick={onBackToGame} className="text-xl px-8 py-4">
+        <Button onClick={onBackToGame} className="text-xl px-8 py-4" variant="secondary">
           Back to Game
         </Button>
       </div>

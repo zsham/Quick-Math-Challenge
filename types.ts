@@ -53,6 +53,9 @@ export interface QuestionSchema { // Renamed from MathQuestionSchema
 export interface User {
   username: string;
   passwordHash: string; // Storing hashed password for simulation, but actual apps need robust security.
+  displayName?: string;
+  email?: string;
+  profilePictureBase64?: string;
 }
 
 /**

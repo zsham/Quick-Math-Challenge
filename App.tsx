@@ -87,7 +87,7 @@ const saveActiveChallenges = (challenges: ChallengePosting[]) => {
 
 function App() {
   const [currentViewMode, setCurrentViewMode] = useState<ViewMode>(ViewMode.LOGIN);
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<User | null>(null); // Changed to User object
   const [gamePhase, setGamePhase] = useState<GamePhase>(GamePhase.IDLE); // Internal game state
   const [questions, setQuestions] = useState<Question[]>([]); // Updated type to 'Question'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
@@ -183,26 +183,38 @@ function App() {
     if (gamePhase === GamePhase.FINISHED && loggedInUser && questions.length > 0) {
       const newRecord: GameRecord = {
         id: crypto.randomUUID(), // Unique ID for each record
-        username: loggedInUser,
+        username: loggedInUser.username,
         score: score,
         totalQuestions: questions.length,
         date: new Date().toISOString(),
       };
-      saveGameRecord(loggedInUser, newRecord);
+      saveGameRecord(loggedInUser.username, newRecord);
       setChallengedRecord(null); // Clear challenged record after game completion
     }
   }, [gamePhase, loggedInUser, score, questions.length]);
 
   const handleLogin = (username: string) => {
-    setLoggedInUser(username);
-    setCurrentViewMode(ViewMode.GAME);
-    setGamePhase(GamePhase.IDLE); // Reset game state
+    const users = loadUsers();
+    const user = users.get(username);
+    if (user) {
+      setLoggedInUser(user); // Set full User object
+      setCurrentViewMode(ViewMode.GAME);
+      setGamePhase(GamePhase.IDLE);
+    }
   };
 
   const handleRegister = (username: string) => {
-    setLoggedInUser(username);
+    // Re-load user to get full object (though logic in AuthForm handles creation)
+    const users = loadUsers();
+    const user = users.get(username);
+    if (user) {
+      setLoggedInUser(user);
+    } else {
+        // Fallback if not found immediately (shouldn't happen with sync code)
+        setLoggedInUser({ username, passwordHash: '' }); 
+    }
     setCurrentViewMode(ViewMode.GAME);
-    setGamePhase(GamePhase.IDLE); // Reset game state
+    setGamePhase(GamePhase.IDLE);
   };
 
   const handleLogout = () => {
@@ -229,14 +241,14 @@ function App() {
 
   const handlePostChallenge = () => {
     if (loggedInUser && gamePhase === GamePhase.FINISHED && questions.length > 0) {
-      const currentRecords = loadGameRecords(loggedInUser);
+      const currentRecords = loadGameRecords(loggedInUser.username);
       const lastGameRecord = currentRecords[currentRecords.length - 1]; // Get the just-finished game record
 
       if (lastGameRecord) {
         const newChallenge: ChallengePosting = {
           id: crypto.randomUUID(),
           originalRecordId: lastGameRecord.id,
-          username: loggedInUser,
+          username: loggedInUser.username,
           score: lastGameRecord.score,
           totalQuestions: lastGameRecord.totalQuestions,
           datePosted: new Date().toISOString(),
@@ -254,14 +266,24 @@ function App() {
     saveActiveChallenges(updatedChallenges);
   };
 
-  const handleUpdatePassword = (username: string, newPasswordHash: string) => {
+  const handleUpdateProfile = (updateData: Partial<User & { newPassword?: string }>) => {
+    if (!loggedInUser) return;
+
     const users = loadUsers();
-    const user = users.get(username);
+    const user = users.get(loggedInUser.username);
+    
     if (user) {
-      user.passwordHash = newPasswordHash;
-      users.set(username, user);
+      // Update fields if present
+      if (updateData.displayName !== undefined) user.displayName = updateData.displayName;
+      if (updateData.email !== undefined) user.email = updateData.email;
+      if (updateData.profilePictureBase64 !== undefined) user.profilePictureBase64 = updateData.profilePictureBase64;
+      if (updateData.newPassword !== undefined) user.passwordHash = updateData.newPassword;
+
+      users.set(loggedInUser.username, user);
       saveUsers(users);
-      // Optionally provide feedback in ProfileForm
+      
+      // Update local state immediately so UI reflects changes
+      setLoggedInUser({ ...user }); 
     }
   };
 
@@ -283,7 +305,7 @@ function App() {
       case ViewMode.HISTORY:
         return (
           <GameHistory
-            username={loggedInUser!}
+            username={loggedInUser!.username}
             onBackToGame={() => {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
@@ -316,7 +338,7 @@ function App() {
               setChallengePostedMessage(null);
             }}
             onStartChallenge={startChallengeGame}
-            loggedInUser={loggedInUser}
+            loggedInUser={loggedInUser ? loggedInUser.username : null}
             loadActiveChallenges={loadActiveChallenges}
             onRemoveChallenge={handleRemoveChallenge}
           />
@@ -324,7 +346,7 @@ function App() {
       case ViewMode.STATISTICS:
         return (
           <Statistics
-            username={loggedInUser!}
+            username={loggedInUser!.username}
             onBackToGame={() => {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
@@ -337,55 +359,69 @@ function App() {
       case ViewMode.PROFILE: // New case for ProfileForm
         return (
           <ProfileForm
-            username={loggedInUser!}
+            currentUser={loggedInUser!}
             onBackToGame={() => {
               setCurrentViewMode(ViewMode.GAME);
               setGamePhase(GamePhase.IDLE);
               setChallengedRecord(null); // Clear challenge when going back to game idle
               setChallengePostedMessage(null);
             }}
-            onUpdatePassword={handleUpdatePassword}
+            onUpdateProfile={handleUpdateProfile}
           />
         );
       case ViewMode.GAME:
         return (
           <>
-            <div className="flex justify-between w-full max-w-lg mb-8 items-center px-4">
-              <h2 className="text-xl font-bold text-gray-200">Hello, {loggedInUser}!</h2>
-              <div className="flex space-x-2">
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-sm px-4 py-2">
+            <div className="flex justify-between w-full max-w-4xl mb-8 items-center px-6 py-4 bg-white/30 backdrop-blur-md rounded-2xl shadow-lg border border-white/50">
+              <div className="flex items-center gap-3">
+                 {loggedInUser?.profilePictureBase64 ? (
+                     <img src={loggedInUser.profilePictureBase64} alt="Profile" className="w-10 h-10 rounded-full object-cover border-2 border-white shadow-sm" />
+                 ) : (
+                    <div className="w-10 h-10 rounded-full bg-indigo-200 flex items-center justify-center text-indigo-700 font-bold border-2 border-white shadow-sm">
+                        {loggedInUser?.displayName?.charAt(0).toUpperCase() || loggedInUser?.username.charAt(0).toUpperCase()}
+                    </div>
+                 )}
+                 <h2 className="text-xl font-bold text-indigo-900">
+                     Hi, {loggedInUser?.displayName || loggedInUser?.username}!
+                 </h2>
+              </div>
+              
+              <div className="flex space-x-2 flex-wrap justify-end gap-y-2">
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
                   History
                 </Button>
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-sm px-4 py-2">
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
                   Leaderboard
                 </Button>
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-sm px-4 py-2">
-                  Statistics
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
+                  Stats
                 </Button>
-                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.PROFILE)} className="text-sm px-4 py-2">
+                <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.PROFILE)} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
                   Profile
                 </Button>
-                <Button variant="danger" onClick={handleLogout} className="text-sm px-4 py-2">
+                <Button variant="danger" onClick={handleLogout} className="text-xs md:text-sm px-3 md:px-4 py-2 rounded-lg">
                   Logout
                 </Button>
               </div>
             </div>
 
             {gamePhase === GamePhase.IDLE && (
-              <div className="text-center">
-                <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-8 drop-shadow-lg">Quick Math Challenge</h1>
-                <p className="text-xl text-gray-200 mb-12 max-w-md mx-auto">Test your mental math skills against the clock!</p>
+              <div className="text-center w-full max-w-3xl">
+                <h1 className="text-6xl md:text-8xl font-black text-white mb-8 drop-shadow-xl tracking-tight">Quick Math<br/>Challenge</h1>
+                <p className="text-2xl text-indigo-900 font-medium mb-12 max-w-lg mx-auto leading-relaxed bg-white/40 backdrop-blur-sm p-4 rounded-xl shadow-sm">
+                    Test your mental math skills against the clock! 🧠✨
+                </p>
                 {challengedRecord && (
-                  <div className="bg-blue-600/50 p-4 rounded-lg mb-8 max-w-sm mx-auto animate-pulse">
-                    <p className="text-lg font-semibold text-blue-200">Challenging: <span className="text-yellow-200">{challengedRecord.username}</span></p>
-                    <p className="text-md text-blue-200">Target Score: <span className="text-yellow-200">{challengedRecord.score}</span> / {challengedRecord.totalQuestions}</p>
+                  <div className="bg-sky-100 p-6 rounded-2xl mb-8 max-w-sm mx-auto animate-pulse border-4 border-sky-200 shadow-lg">
+                    <p className="text-lg font-bold text-sky-800">Challenging: <span className="text-rose-500">{challengedRecord.username}</span></p>
+                    <p className="text-md text-sky-700">Target Score: <span className="text-rose-500 font-black">{challengedRecord.score}</span></p>
                   </div>
                 )}
-                <div className="space-x-4">
-                  <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
-                    {challengedRecord ? 'Re-Challenge' : 'Start Game'}
+                <div className="flex flex-col md:flex-row gap-4 justify-center">
+                  <Button onClick={fetchQuestions} className="text-2xl px-12 py-6 rounded-3xl shadow-xl hover:scale-105 transform transition-transform">
+                    {challengedRecord ? 'Start Challenge!' : 'Start Game! 🚀'}
                   </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-2xl px-10 py-5">
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-xl px-10 py-6 rounded-3xl">
                     Active Challenges
                   </Button>
                 </div>
@@ -393,14 +429,17 @@ function App() {
             )}
 
             {gamePhase === GamePhase.LOADING_QUESTIONS && (
-              <div className="text-center text-white text-3xl font-semibold animate-pulse">
-                Loading questions...
+              <div className="text-center bg-white/50 backdrop-blur-md p-12 rounded-3xl shadow-xl">
+                <div className="text-6xl mb-4">🎲</div>
+                <div className="text-indigo-900 text-3xl font-bold animate-pulse">
+                  Generating Fun...
+                </div>
               </div>
             )}
 
             {gamePhase === GamePhase.PLAYING && (
               <>
-                <div className="flex justify-between w-full max-w-lg mb-8">
+                <div className="flex justify-between w-full max-w-lg mb-8 items-end px-4">
                   <ScoreDisplay score={score} challengedScore={challengedRecord?.score} />
                   <Timer timeLeft={timeLeft} />
                 </div>
@@ -418,46 +457,44 @@ function App() {
             )}
 
             {gamePhase === GamePhase.FINISHED && (
-              <div className="text-center">
-                <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-8 drop-shadow-lg">Game Over!</h1>
-                <p className="text-4xl font-bold text-emerald-300 mb-8">Your Final Score: {score} / {questions.length}</p>
+              <div className="text-center bg-white/95 backdrop-blur-sm p-12 rounded-3xl shadow-2xl border-4 border-white w-full max-w-2xl mx-auto">
+                <h1 className="text-5xl md:text-7xl font-black text-indigo-900 mb-8">Game Over!</h1>
+                <p className="text-5xl font-black text-emerald-500 mb-8 bg-emerald-50 inline-block px-8 py-4 rounded-2xl">
+                    Score: {score} <span className="text-2xl text-gray-400 font-bold">/ {questions.length}</span>
+                </p>
+                
                 {challengedRecord && (
-                  <div className="bg-blue-600/50 p-4 rounded-lg mb-8 max-w-md mx-auto">
-                    <p className="text-2xl font-semibold text-blue-200">
-                      Challenged <span className="text-yellow-200">{challengedRecord.username}</span> (Target: {challengedRecord.score})
+                  <div className="bg-sky-50 p-6 rounded-2xl mb-8 max-w-md mx-auto border-2 border-sky-100">
+                    <p className="text-xl font-bold text-gray-600">
+                      Vs <span className="text-sky-600">{challengedRecord.username}</span> (Target: {challengedRecord.score})
                     </p>
                     {score > challengedRecord.score ? (
-                      <p className="text-3xl font-bold text-emerald-400 mt-2">CHALLENGE WON!</p>
+                      <p className="text-3xl font-black text-emerald-500 mt-2">🎉 CHALLENGE WON! 🎉</p>
                     ) : score === challengedRecord.score ? (
-                      <p className="text-3xl font-bold text-blue-400 mt-2">IT'S A TIE!</p>
+                      <p className="text-3xl font-black text-blue-500 mt-2">🤝 IT'S A TIE! 🤝</p>
                     ) : (
-                      <p className="text-3xl font-bold text-red-400 mt-2">CHALLENGE LOST!</p>
+                      <p className="text-3xl font-black text-rose-500 mt-2">💪 TRY AGAIN! 💪</p>
                     )}
                   </div>
                 )}
+                
                 {challengePostedMessage && (
-                  <p className="text-emerald-300 text-xl mt-4 animate-pulse">{challengePostedMessage}</p>
+                  <div className="bg-emerald-100 text-emerald-800 p-4 rounded-xl mb-6 font-bold animate-bounce">
+                      {challengePostedMessage}
+                  </div>
                 )}
-                <div className="space-x-4 mt-8">
-                  <Button onClick={fetchQuestions} className="text-2xl px-10 py-5">
-                    Play Again
-                  </Button>
-                  <Button variant="secondary" onClick={handlePostChallenge} className="text-2xl px-10 py-5" disabled={!!challengePostedMessage}>
-                    Post as Challenge
-                  </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-2xl px-10 py-5">
-                    Active Challenges
-                  </Button>
-                </div>
-                <div className="space-x-4 mt-4">
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.HISTORY)} className="text-xl px-8 py-4">
-                    View History
-                  </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.LEADERBOARD)} className="text-xl px-8 py-4">
-                    Leaderboard
-                  </Button>
-                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.STATISTICS)} className="text-xl px-8 py-4">
-                    Statistics
+                
+                <div className="grid grid-cols-1 gap-4 mt-8">
+                  <div className="flex flex-col md:flex-row gap-4 justify-center">
+                      <Button onClick={fetchQuestions} className="text-xl px-10 py-5 w-full md:w-auto">
+                        Play Again 🔄
+                      </Button>
+                      <Button variant="secondary" onClick={handlePostChallenge} className="text-xl px-10 py-5 w-full md:w-auto" disabled={!!challengePostedMessage}>
+                        Post Challenge 📢
+                      </Button>
+                  </div>
+                  <Button variant="secondary" onClick={() => setCurrentViewMode(ViewMode.ACTIVE_CHALLENGES)} className="text-lg px-8 py-4 bg-purple-100 text-purple-700 hover:bg-purple-200 shadow-none border-2 border-purple-200">
+                    See Other Challenges
                   </Button>
                 </div>
               </div>

@@ -58,9 +58,9 @@ const AuthForm: React.FC<AuthFormProps> = ({
   const isLogin = viewMode === ViewMode.LOGIN;
 
   return (
-    <div className="bg-gradient-to-br from-indigo-700 to-purple-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm mx-auto text-white text-center border-4 border-indigo-500">
-      <h2 className="text-4xl font-extrabold mb-6 drop-shadow-lg">
-        {isLogin ? 'Login' : 'Register'}
+    <div className="bg-white/95 backdrop-blur-sm p-8 rounded-3xl shadow-xl w-full max-w-sm mx-auto text-center border-4 border-white">
+      <h2 className="text-4xl font-extrabold mb-6 text-indigo-900">
+        {isLogin ? 'Welcome Back!' : 'Join the Fun!'}
       </h2>
       <form onSubmit={handleAuth} className="space-y-6">
         <Input
@@ -79,26 +79,26 @@ const AuthForm: React.FC<AuthFormProps> = ({
           required
           aria-label="Password"
         />
-        {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
-        {successMessage && <p className="text-emerald-400 text-sm mt-2">{successMessage}</p>}
-        <Button type="submit" className="w-full text-xl py-3">
-          {isLogin ? 'Login' : 'Register'}
+        {error && <p className="text-rose-500 font-medium text-sm mt-2">{error}</p>}
+        {successMessage && <p className="text-emerald-500 font-medium text-sm mt-2">{successMessage}</p>}
+        <Button type="submit" className="w-full text-xl py-3 rounded-2xl">
+          {isLogin ? 'Login' : 'Create Account'}
         </Button>
       </form>
       <div className="mt-6">
-        <p className="text-gray-300">
+        <p className="text-gray-500">
           {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
           <button
             onClick={() => onSwitchView(isLogin ? ViewMode.REGISTER : ViewMode.LOGIN)}
-            className="text-blue-300 hover:text-blue-200 font-semibold underline focus:outline-none"
+            className="text-sky-500 hover:text-sky-600 font-bold underline focus:outline-none"
             aria-label={isLogin ? "Switch to register form" : "Switch to login form"}
           >
             {isLogin ? 'Register' : 'Login'}
           </button>
         </p>
       </div>
-      <p className="text-xs text-gray-500 mt-8">
-        Note: For demo purposes, user data is stored in your browser's local storage and is not secured.
+      <p className="text-xs text-gray-400 mt-8">
+        Note: Data stored locally in browser.
       </p>
     </div>
   );

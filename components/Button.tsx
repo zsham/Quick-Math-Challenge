@@ -13,12 +13,12 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   ...props
 }) => {
-  const baseStyles = 'px-6 py-3 rounded-full font-semibold transition-all duration-200 focus:outline-none focus:ring-4';
+  const baseStyles = 'px-6 py-3 rounded-2xl font-bold transition-all duration-200 focus:outline-none focus:ring-4 transform hover:-translate-y-1 active:translate-y-0';
   
   const variantStyles = {
-    primary: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/50 focus:ring-emerald-500/30',
-    secondary: 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/50 focus:ring-blue-500/30',
-    danger: 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/50 focus:ring-red-500/30',
+    primary: 'bg-sky-500 hover:bg-sky-400 text-white shadow-lg shadow-sky-500/40 focus:ring-sky-500/30',
+    secondary: 'bg-indigo-400 hover:bg-indigo-300 text-white shadow-lg shadow-indigo-400/40 focus:ring-indigo-400/30',
+    danger: 'bg-rose-400 hover:bg-rose-300 text-white shadow-lg shadow-rose-400/40 focus:ring-rose-400/30',
   };
 
   return (

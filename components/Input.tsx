@@ -11,7 +11,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(({ className = '', 
     <input
       // Fix: Pass the forwarded ref to the native input element.
       ref={ref}
-      className={`w-full p-4 text-2xl text-center border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 bg-gray-700 text-white placeholder-gray-400 ${className}`}
+      className={`w-full p-4 text-2xl text-center border-2 border-gray-200 rounded-xl focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 bg-white text-gray-800 placeholder-gray-400 shadow-sm transition-all duration-200 ${className}`}
       {...props}
     />
   );
