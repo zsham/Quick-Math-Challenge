@@ -1,29 +1,20 @@
+
 // services/geminiService.ts
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { Question, QuestionSchema } from '../types'; // Updated import to use 'Question'
+import { Question, QuestionSchema } from '../types';
 
 /**
  * Initializes the GoogleGenAI client.
- * The API key is assumed to be available from `process.env.API_KEY`.
  */
 const getGeminiClient = () => {
-  if (!process.env.API_KEY) {
-    console.error('API_KEY environment variable is not set.');
-    // In a real application, you might want to throw an error or handle this more gracefully.
-    throw new Error('Google Gemini API Key is missing.');
-  }
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 /**
  * Generates a batch of math and situation-based questions using the Gemini API.
- *
- * @param count The number of questions to generate.
- * @param maxNum The maximum number value for the operands in arithmetic questions.
- * @returns A promise that resolves to an array of Question objects.
  */
-export const generateGameQuestions = async (count: number, maxNum: number): Promise<Question[]> => { // Renamed function
+export const generateGameQuestions = async (count: number, maxNum: number): Promise<Question[]> => {
   try {
     const ai = getGeminiClient();
     const prompt = `Generate ${count} diverse math problems for a math game. Include a mix of arithmetic problems (addition, subtraction, multiplication, division) and situation-based word problems.
@@ -39,15 +30,10 @@ export const generateGameQuestions = async (count: number, maxNum: number): Prom
     - Provide the correct numerical 'answer'.
     - Set 'type' to 'situation'.
 
-    Example situation problem:
-    situationText: "Ali buys RM2 candy. He has RM10 in hand."
-    questionText: "How much money does he have left after buying the candy?"
-    answer: 8
-
     Return the output in JSON format according to the provided schema.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -61,25 +47,18 @@ export const generateGameQuestions = async (count: number, maxNum: number): Prom
                 properties: {
                   type: {
                     type: Type.STRING,
-                    enum: ['arithmetic', 'situation'],
-                    description: 'Type of question'
+                    description: 'Type of question: "arithmetic" or "situation"',
                   },
-                  // Arithmetic properties (optional for situation)
-                  num1: { type: Type.NUMBER, description: 'First number (for arithmetic)', optional: true },
-                  num2: { type: Type.NUMBER, description: 'Second number (for arithmetic)', optional: true },
+                  num1: { type: Type.NUMBER },
+                  num2: { type: Type.NUMBER },
                   operation: {
                     type: Type.STRING,
-                    enum: ['+', '-', '*', '/'],
-                    description: 'Arithmetic operation (for arithmetic)',
-                    optional: true
                   },
-                  // Common properties
-                  answer: { type: Type.NUMBER, description: 'Correct numerical answer' },
-                  questionText: { type: Type.STRING, description: 'The specific question to be solved' },
-                  // Situation properties (optional for arithmetic)
-                  situationText: { type: Type.STRING, description: 'Descriptive text for situation problems', optional: true }
+                  answer: { type: Type.NUMBER },
+                  questionText: { type: Type.STRING },
+                  situationText: { type: Type.STRING }
                 },
-                required: ['type', 'answer', 'questionText'], // 'type', 'answer', 'questionText' are always required
+                required: ['type', 'answer', 'questionText'],
               },
             },
           },
@@ -91,10 +70,18 @@ export const generateGameQuestions = async (count: number, maxNum: number): Prom
     const jsonStr = response.text.trim();
     const parsedData: QuestionSchema = JSON.parse(jsonStr);
 
+    if (!parsedData.questions || !Array.isArray(parsedData.questions)) {
+      throw new Error("Invalid response format from AI");
+    }
+
     return parsedData.questions;
   } catch (error) {
-    console.error('Error generating game questions with Gemini API:', error);
-    // Fallback or error handling logic
-    return []; // Return an empty array on error
+    console.error('Error generating game questions:', error);
+    // Return some basic fallback questions if the API fails
+    return [
+      { type: 'arithmetic', num1: 5, num2: 5, operation: '+', answer: 10, questionText: '5 + 5 = ?' },
+      { type: 'arithmetic', num1: 12, num2: 4, operation: '*', answer: 48, questionText: '12 * 4 = ?' },
+      { type: 'situation', situationText: 'John has 10 apples. He gives 3 to Mary.', questionText: 'How many apples does John have left?', answer: 7 }
+    ];
   }
 };
