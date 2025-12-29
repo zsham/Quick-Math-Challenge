@@ -1,12 +1,14 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/1.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/2.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/3.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/4.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/5.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/6.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/7.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/8.jpg" /><br>
+<img alt="GHBanner" src="https://github.com/zsham/Quick-Math-Challenge/blob/97f631cca0b1de59f342c96f0f5f2eb5bc1d4d8f/9.jpg" />
 </div>
-
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/drive/184GG4mMpCAQGtpvNw-GDHw6bnPHsRybl
 
 ## Run Locally
 
